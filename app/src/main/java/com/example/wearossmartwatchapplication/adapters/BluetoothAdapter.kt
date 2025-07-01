@@ -46,6 +46,8 @@ class BluetoothAdapter(private val activity: ComponentActivity) : DefaultLifecyc
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
             Toast.makeText(activity, "Bluetooth включён", Toast.LENGTH_SHORT).show()
+        } else {
+            Toast.makeText(activity, "Bluetooth выключён", Toast.LENGTH_SHORT).show()
         }
     }
 
