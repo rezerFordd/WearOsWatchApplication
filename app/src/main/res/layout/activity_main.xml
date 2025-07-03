@@ -19,13 +19,37 @@
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintVertical_bias="0.01999998" />
 
-    <Button
-        android:id="@+id/buttonBuletoothSearch"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/buttonBluetoothSearching"
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rcViewDevices"
+        android:layout_width="409dp"
+        android:layout_height="500dp"
+        android:layout_marginBottom="16dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <Button
+        android:id="@+id/buttonSearch"
+        android:layout_width="205dp"
+        android:layout_height="49dp"
+        android:layout_marginTop="40dp"
+        android:backgroundTint="@color/design_default_color_secondary_variant"
+        android:text="@string/buttonBluetoothSearching"
+        app:layout_constraintEnd_toEndOf="@+id/textMain"
+        app:layout_constraintStart_toStartOf="@+id/textMain"
+        app:layout_constraintTop_toBottomOf="@+id/textMain" />
+
+    <Button
+        android:id="@+id/buttonSelectFile"
+        android:layout_width="205dp"
+        android:layout_height="49dp"
+        android:backgroundTint="@color/design_default_color_secondary_variant"
+        android:enabled="false"
+        android:text="@string/buttonBluetoothСhoseFile"
+        android:textColor="@color/white"
+        app:layout_constraintBottom_toTopOf="@+id/rcViewDevices"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toBottomOf="@+id/buttonSearch" />
+
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -14,6 +14,8 @@ import java.io.IOException
 import java.util.UUID
 
 class BluetoothService(private val context: Context) {
+
+    private var connectedSocket: BluetoothSocket? = null
     private val bluetoothAdapter : BluetoothAdapter? by lazy {
         (context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter
     }
@@ -70,6 +72,19 @@ class BluetoothService(private val context: Context) {
             outputStream.close()
             socket.close()
         } catch (e: IOException) {
+            e.printStackTrace()
+        }
+    }
+
+    fun getConnectedSocket(): BluetoothSocket? {
+        return connectedSocket
+    }
+
+    fun closeConnection(socket: BluetoothSocket?) {
+        try {
+            socket?.close()
+            connectedSocket = null
+        } catch (e:IOException) {
             e.printStackTrace()
         }
     }

@@ -2,5 +2,5 @@
     <string name="app_name">WearOSSmartWatchApplication</string>
     <string name="textMain">WearOs Темы</string>
     <string name="buttonBluetoothSearching">Найти смарт-часы</string>
-
+    <string name="buttonBluetoothСhoseFile">Выбрать файл</string>
 </resources>
