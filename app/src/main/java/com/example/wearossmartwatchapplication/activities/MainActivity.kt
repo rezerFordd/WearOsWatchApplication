@@ -1,6 +1,7 @@
 package com.example.wearossmartwatchapplication.activities
 
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.os.Bundle
 import android.widget.Toast
@@ -13,21 +14,34 @@ import com.example.wearossmartwatchapplication.adapters.DeviceAdapter
 import android.bluetooth.BluetoothDevice
 import android.content.Intent
 import android.app.Activity
+import android.bluetooth.BluetoothSocket
+import android.content.pm.PackageManager
 import android.net.Uri
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+
 
 class MainActivity : AppCompatActivity() {
     lateinit var binding : ActivityMainBinding
     private lateinit var bluetoothService: BluetoothService
-    private var connectedSocket = bluetoothService.getConnectedSocket()
+    private var connectedSocket: BluetoothSocket? = null
     private var devices = mutableListOf<BluetoothDevice>()
     private lateinit var deviceAdapter: DeviceAdapter
+    companion object {
+        const val PERMISSION_REQUEST_CODE = 100
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        binding = ActivityMainBinding.inflate(layoutInflater)
+
         super.onCreate(savedInstanceState)
+        binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
         bluetoothService = BluetoothService(this)
+
+        if (!hasPermissions()) {
+            requestPermissions()
+        }
 
         @SuppressLint("MissingPermission")
         deviceAdapter = DeviceAdapter(devices) { device ->
@@ -81,6 +95,33 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        bluetoothService.cancelDiscovery()
         bluetoothService.closeConnection(connectedSocket)
+    }
+
+    private fun hasPermissions(): Boolean {
+        return ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED &&
+                ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED &&
+                ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+    }
+
+    private fun requestPermissions() {
+        val permissions = arrayOf(
+            Manifest.permission.BLUETOOTH_CONNECT,
+            Manifest.permission.BLUETOOTH_SCAN,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        )
+        ActivityCompat.requestPermissions(this, permissions, PERMISSION_REQUEST_CODE)
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == PERMISSION_REQUEST_CODE) {
+            if (grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
+                Toast.makeText(this, "Разрешения предоставлены", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(this, "Не все разрешения предоставлены", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 }

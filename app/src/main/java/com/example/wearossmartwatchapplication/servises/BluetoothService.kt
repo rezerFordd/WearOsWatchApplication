@@ -1,5 +1,6 @@
 package com.example.wearossmartwatchapplication.servises
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
@@ -9,13 +10,18 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.net.Uri
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import com.example.wearossmartwatchapplication.activities.MainActivity.Companion.PERMISSION_REQUEST_CODE
 import java.io.IOException
 import java.util.UUID
 
 class BluetoothService(private val context: Context) {
 
     private var connectedSocket: BluetoothSocket? = null
+    private var receiver: BroadcastReceiver? = null
     private val bluetoothAdapter : BluetoothAdapter? by lazy {
         (context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter
     }
@@ -38,6 +44,14 @@ class BluetoothService(private val context: Context) {
         }
         context.registerReceiver(receiver, filter)
         bluetoothAdapter?.startDiscovery()
+    }
+
+    @SuppressLint("MissingPermission")
+    fun cancelDiscovery() {
+        receiver?.let {
+            context.unregisterReceiver(it)
+        }
+        bluetoothAdapter?.cancelDiscovery()
     }
 
     @SuppressLint("MissingPermission")
@@ -88,4 +102,5 @@ class BluetoothService(private val context: Context) {
             e.printStackTrace()
         }
     }
+
 }
