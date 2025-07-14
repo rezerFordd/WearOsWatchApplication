@@ -1,37 +1,32 @@
 package com.example.wearossmartwatchapplication.servises
 
-import android.Manifest
 import android.annotation.SuppressLint
-import android.bluetooth.BluetoothAdapter
-import android.bluetooth.BluetoothDevice
-import android.bluetooth.BluetoothManager
-import android.bluetooth.BluetoothSocket
+import android.bluetooth.*
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.content.pm.PackageManager
 import android.net.Uri
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
-import com.example.wearossmartwatchapplication.activities.MainActivity.Companion.PERMISSION_REQUEST_CODE
+import android.util.Log
 import java.io.IOException
 import java.util.UUID
 
 class BluetoothService(private val context: Context) {
 
-    private var connectedSocket: BluetoothSocket? = null
-    private var receiver: BroadcastReceiver? = null
-    private val bluetoothAdapter : BluetoothAdapter? by lazy {
+    private var connectedGatt: BluetoothGatt? = null
+    private var connectedDevice: BluetoothDevice? = null
+
+    private val bluetoothAdapter: BluetoothAdapter? by lazy {
         (context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter
     }
 
-    companion object{
-        val MY_UUID : UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
+    companion object {
+        val GENERIC_FILE_TRANSFER_SERVICE_UUID: UUID = UUID.fromString("0000FEFF-0000-1000-8000-00805F9B34FB")
+        val GENERIC_CHARACTERISTIC_UUID: UUID = UUID.fromString("0000FF01-0000-1000-8000-00805F9B34FB")
     }
 
     @SuppressLint("MissingPermission")
-    fun startDiscovery(deviceFoundCallback : (BluetoothDevice) -> Unit) {
+    fun startDiscovery(deviceFoundCallback: (BluetoothDevice) -> Unit) {
         val filter = IntentFilter(BluetoothDevice.ACTION_FOUND)
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
@@ -48,59 +43,87 @@ class BluetoothService(private val context: Context) {
 
     @SuppressLint("MissingPermission")
     fun cancelDiscovery() {
-        receiver?.let {
-            context.unregisterReceiver(it)
-        }
         bluetoothAdapter?.cancelDiscovery()
     }
 
     @SuppressLint("MissingPermission")
-    fun connectToDevice(device: BluetoothDevice): BluetoothSocket? {
-        val uuid = device.uuids?.firstOrNull()?.uuid ?: MY_UUID
-        return try {
-            bluetoothAdapter?.cancelDiscovery()
-            val socket = device.createRfcommSocketToServiceRecord(uuid)
-            socket.connect()
-            socket
-        }   catch (e:Exception) {
-            e.printStackTrace()
-            null
-        }
+    fun connectToDevice(device: BluetoothDevice) {
+        connectedDevice = device
+        connectedGatt = device.connectGatt(context, false, object : BluetoothGattCallback() {
+            override fun onConnectionStateChange(gatt: BluetoothGatt?, status: Int, newState: Int) {
+                if (newState == BluetoothGatt.STATE_CONNECTED) {
+                    Log.d("BluetoothService", "Connected to device")
+                    gatt?.discoverServices()
+                } else {
+                    Log.d("BluetoothService", "Disconnected from device")
+                }
+            }
+
+            override fun onServicesDiscovered(gatt: BluetoothGatt?, status: Int) {
+                if (status == BluetoothGatt.GATT_SUCCESS) {
+                    Log.d("BluetoothService", "Services discovered")
+                    val service = gatt?.getService(GENERIC_FILE_TRANSFER_SERVICE_UUID)
+                    val characteristic = service?.getCharacteristic(GENERIC_CHARACTERISTIC_UUID)
+                    characteristic?.let {
+                        gatt.readCharacteristic(it)
+                    }
+                }
+            }
+
+            override fun onCharacteristicRead(
+                gatt: BluetoothGatt?,
+                characteristic: BluetoothGattCharacteristic?,
+                status: Int
+            ) {
+                if (status == BluetoothGatt.GATT_SUCCESS) {
+                    val value = characteristic?.value
+                    Log.d("BluetoothService", "Characteristic read: ${value?.joinToString()}")
+                }
+            }
+
+            override fun onCharacteristicWrite(
+                gatt: BluetoothGatt?,
+                characteristic: BluetoothGattCharacteristic?,
+                status: Int
+            ) {
+                if (status == BluetoothGatt.GATT_SUCCESS) {
+                    Log.d("BluetoothService", "Characteristic write successful")
+                }
+            }
+        })
     }
 
-    fun sendFile(socket: BluetoothSocket, fileUri: Uri) {
+    @SuppressLint("MissingPermission")
+    fun sendFile(fileUri: Uri) {
         try {
             val inputStream = context.contentResolver.openInputStream(fileUri)
-            val outputStream = socket.outputStream
+            val outputStreamCharacteristic = connectedGatt?.getService(GENERIC_FILE_TRANSFER_SERVICE_UUID)?.getCharacteristic(GENERIC_CHARACTERISTIC_UUID)
 
-            if (inputStream != null) {
+            if (inputStream != null && outputStreamCharacteristic != null) {
                 val buffer = ByteArray(1024)
                 var bytesRead: Int
 
                 while (inputStream.read(buffer).also { bytesRead = it } != -1) {
-                    outputStream.write(buffer, 0 , bytesRead)
+                    outputStreamCharacteristic.value = buffer.copyOf(bytesRead)
+                    connectedGatt?.writeCharacteristic(outputStreamCharacteristic)
                 }
-                outputStream.flush()
+
                 inputStream.close()
             }
-            outputStream.close()
-            socket.close()
         } catch (e: IOException) {
             e.printStackTrace()
         }
     }
 
-    fun getConnectedSocket(): BluetoothSocket? {
-        return connectedSocket
+    @SuppressLint("MissingPermission")
+    fun closeConnection() {
+        connectedGatt?.close()
+        connectedGatt = null
+        Log.d("BluetoothService", "Connection closed")
     }
 
-    fun closeConnection(socket: BluetoothSocket?) {
-        try {
-            socket?.close()
-            connectedSocket = null
-        } catch (e:IOException) {
-            e.printStackTrace()
-        }
+    fun getConnectedGatt(): BluetoothGatt? {
+        return connectedGatt
     }
 
 }

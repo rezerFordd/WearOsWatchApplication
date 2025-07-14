@@ -1,38 +1,35 @@
 package com.example.wearossmartwatchapplication.activities
 
-
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.Activity
+import android.bluetooth.BluetoothDevice
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.wearossmartwatchapplication.databinding.ActivityMainBinding
 import com.example.wearossmartwatchapplication.servises.BluetoothService
 import com.example.wearossmartwatchapplication.adapters.DeviceAdapter
-import android.bluetooth.BluetoothDevice
-import android.content.Intent
-import android.app.Activity
-import android.bluetooth.BluetoothSocket
 import android.content.pm.PackageManager
-import android.net.Uri
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
-
 
 class MainActivity : AppCompatActivity() {
     lateinit var binding : ActivityMainBinding
     private lateinit var bluetoothService: BluetoothService
-    private var connectedSocket: BluetoothSocket? = null
+    private var connectedGatt = bluetoothService.getConnectedGatt()
     private var devices = mutableListOf<BluetoothDevice>()
     private lateinit var deviceAdapter: DeviceAdapter
+
     companion object {
         const val PERMISSION_REQUEST_CODE = 100
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -45,25 +42,20 @@ class MainActivity : AppCompatActivity() {
 
         @SuppressLint("MissingPermission")
         deviceAdapter = DeviceAdapter(devices) { device ->
-            val socket = bluetoothService.connectToDevice(device)
-            if (socket != null) {
-                connectedSocket = socket
-                binding.buttonSelectFile.isEnabled = true
-                Toast.makeText(this, "Подключено к ${device.name} !", Toast.LENGTH_SHORT).show()
-            } else {
-                Toast.makeText(this, "Не удалось подключиться к устройству !", Toast.LENGTH_SHORT).show()
-            }
+            bluetoothService.connectToDevice(device)
+            binding.buttonSelectFile.isEnabled = true
+            Toast.makeText(this, "Подключено к ${device.name} !", Toast.LENGTH_SHORT).show()
         }
 
         binding.rcViewDevices.layoutManager = LinearLayoutManager(this)
         binding.rcViewDevices.adapter = deviceAdapter
 
-        binding.buttonSearch.setOnClickListener{
+        binding.buttonSearch.setOnClickListener {
             devices.clear()
             deviceAdapter.notifyDataSetChanged()
             bluetoothService.startDiscovery { device ->
-                runOnUiThread{
-                    if (!devices.any{it.address == device.address}) {
+                runOnUiThread {
+                    if (!devices.any { it.address == device.address }) {
                         devices.add(device)
                         deviceAdapter.notifyItemInserted(devices.lastIndex)
                     }
@@ -71,7 +63,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        binding.buttonSelectFile.setOnClickListener{
+        binding.buttonSelectFile.setOnClickListener {
             val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
                 type = "application/vnd.android.package-archive"
             }
@@ -81,10 +73,10 @@ class MainActivity : AppCompatActivity() {
 
     private val selectFileResult = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
-            val fileUri : Uri? = result.data?.data
+            val fileUri: Uri? = result.data?.data
             fileUri?.let {
-                if (connectedSocket != null) {
-                    bluetoothService.sendFile(connectedSocket!!, it)
+                if (connectedGatt != null) {
+                    bluetoothService.sendFile(it)
                     Toast.makeText(this, "Файл отправлен !", Toast.LENGTH_SHORT).show()
                 }
             }
@@ -96,7 +88,7 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         bluetoothService.cancelDiscovery()
-        bluetoothService.closeConnection(connectedSocket)
+        bluetoothService.closeConnection()
     }
 
     private fun hasPermissions(): Boolean {
